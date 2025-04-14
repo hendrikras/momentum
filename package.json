@@ -1,5 +1,12 @@
 {
+  "scripts": {
+    "generate-certs": "openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost'",
+    "dev": "npm run generate-certs && http-server -S -C cert.pem -K key.pem"
+  },
   "dependencies": {
     "poly-decomp": "^0.3.0"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
   }
 }

@@ -38,3 +38,4 @@ Open the `Player` class and go to the `draw()` method.  From within there, you c
 **How do I get the player's position (x and y)?** - Use `player.body.position.x` and `player.body.position.y`.  All properties for the player's position and such are derived and inherited from [Matter.Body](https://brm.io/matter-js/docs/classes/Body.html)
 
 **The player's position coordinates are wrong, how do I fix this?** - The player is aligned by its center of mass (matter.js body).  You can get the player's bounding box by using `player.body.bounds`.
+
