@@ -64,6 +64,12 @@ const blockTypes = {
       { x: 50, y: 400 },
       { x: 0, y: 400 }
     ]
+  },
+  "m": {
+    points: shapes.rect,
+    isMoving: true,
+    moveDistance: 100,
+    moveSpeed: 1
   }
 }
 
@@ -78,6 +84,11 @@ class Block extends Body {
     this.supports = [];
     this.t = type;
     this.angleCollision = null;
+    this.isMoving = blockTypes[type].isMoving || false;
+    this.moveDistance = blockTypes[type].moveDistance || 0;
+    this.moveSpeed = blockTypes[type].moveSpeed || 0;
+    this.initialY = y;
+    this.movingUp = true;
 
     configBlockEvents(this);
   }
@@ -101,10 +112,20 @@ class Block extends Body {
         fill(0, 225, 255);
         ellipse(this.body.position.x, this.body.position.y, config.world.blockSize, config.world.blockSize);
       break;
+      case "m":
+        fill(100, 100, 255);  // Light blue color for moving platforms
+        beginShape();
+        for (var i = 0; i < this.body.vertices.length; i++) {
+          vertex(this.body.vertices[i].x, this.body.vertices[i].y);
+        }
+        endShape();
+      break;
     }
   }
   run() {
     this.emit("update");
+    this.update();
+
     let col = Collision.collides(this.body, player.body);
     if (col && col.supports) {
       this.emit("collide", [this, player]);
@@ -113,6 +134,25 @@ class Block extends Body {
     } else {
       this.supports = [];
       this.angleCollision = null;
+    }
+  }
+
+  update() {
+    if (this.isMoving) {
+      let currentY = this.body.position.y;
+      if (this.movingUp) {
+        if (currentY > this.initialY - this.moveDistance) {
+          bd.setPosition(this.body, { x: this.body.position.x, y: currentY - this.moveSpeed });
+        } else {
+          this.movingUp = false;
+        }
+      } else {
+        if (currentY < this.initialY) {
+          bd.setPosition(this.body, { x: this.body.position.x, y: currentY + this.moveSpeed });
+        } else {
+          this.movingUp = true;
+        }
+      }
     }
   }
 }

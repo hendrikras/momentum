@@ -12,14 +12,51 @@ class Player extends Body {
 
   // Draw the player on the canvas
   draw() {
-    fill(150);
     let pos = this.body.position;
-    let angle = this.body.angle;
-    beginShape();
-    for (var i = 0; i < this.body.vertices.length; i++) {
-      vertex(this.body.vertices[i].x, this.body.vertices[i].y);
-    }
-    endShape();
+    let w = config.player.width;
+    let h = config.player.height;
+
+    // Animation parameters
+    let runCycle = (frameCount % 20) / 20; // 0 to 1 over 20 frames
+    let isRunning = Math.abs(this.speed) > 0.1;
+    let isJumping = !this.sensors.bottom;
+    let direction = this.speed > 0 ? 1 : -1;
+
+    push(); // Save the current drawing state
+    translate(pos.x, pos.y);
+    scale(direction, 1); // Flip horizontally based on direction
+
+    // Head
+    fill(255);
+    stroke(0);
+    strokeWeight(2);
+    ellipse(0, -h/2 + w/4, w/2, w/2);
+
+    // Body
+    line(0, -h/2 + w/4, 0, h/2 - w/4);
+
+    // Arms
+    let armAngle = isRunning ? sin(runCycle * TWO_PI) * PI/6 : (isJumping ? -PI/4 : PI/6);
+    line(0, -h/4, cos(armAngle) * w/2, sin(armAngle) * w/2);
+    line(0, -h/4, cos(armAngle + PI) * w/2, sin(armAngle + PI) * w/2);
+
+    // Legs
+    let legAngle = isRunning ? sin(runCycle * TWO_PI + PI/2) * PI/6 : (isJumping ? PI/6 : 0);
+    line(0, h/2 - w/4, cos(legAngle) * w/3, h/2 + sin(legAngle) * w/3);
+    line(0, h/2 - w/4, cos(legAngle + PI) * w/3, h/2 + sin(legAngle + PI) * w/3);
+
+    // Eyes
+    fill(0);
+    noStroke();
+    ellipse(-w/8, -h/2 + w/4, w/8, w/8);
+    ellipse(w/8, -h/2 + w/4, w/8, w/8);
+
+    // Mouth
+    noFill();
+    stroke(0);
+    arc(0, -h/2 + w/3, w/4, w/8, 0, PI);
+
+    pop(); // Restore the original drawing state
   }
 
   // Run the player and functionalize commands
@@ -79,27 +116,21 @@ class Player extends Body {
       x: this.speed,
       y: constrain(this.body.velocity.y, -config.world.maxYVel, config.world.maxYVel)
     });
- 
+
+    // Update player position if standing on a moving platform
+    if (this.standingOn && this.standingOn.isMoving) {
+      let dx = this.standingOn.body.position.x - this.standingOn.previousPosition.x;
+      let dy = this.standingOn.body.position.y - this.standingOn.previousPosition.y;
+      bd.translate(this.body, { x: dx, y: dy });
+    }
     // Jumping and Wall-jumping
     if (keys["ArrowUp"] || keys["w"] || keys[" "]) {
-      // If not touching left and right walls, wall-jump
-      if (this.sensors.bottom && !this.sensors.left && !this.sensors.right) {
-        bd.translate(this.body, {
-          x: 0,
-          y: -5
-        });
-        bd.applyForce(this.body, { 
-          x: this.body.position.x,
-          y: this.body.position.y + config.player.height / 2
-        }, { 
-          x: 0,
-          y: -config.player.jumpForce
-        });
+      if (this.sensors.bottom) {
+        bd.setVelocity(this.body, { x: this.body.velocity.x, y: -config.player.jumpForce });
         this.sensors.bottom = false;
+        this.standingOn = null;
         this.emit("jump.up", this);
-        this.i
-      } else {
-        if(config.player.actions.includes("wall jump")) {
+      } else if (config.player.actions.includes("wall jump")) {
           // Jump off a wall depending on which side the player is touching
           if (this.sensors.left) {
             this.speed = config.player.speed/2;
@@ -179,9 +210,9 @@ const configPlayerEvents = () => {
   player.on("update", () => {
     
   })
-  
+
   player.on("collide", (angles) => {
-    
+
   });
 
   player.on("dash", (p) => {
