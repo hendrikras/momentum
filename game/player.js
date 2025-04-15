@@ -117,20 +117,26 @@ class Player extends Body {
       y: constrain(this.body.velocity.y, -config.world.maxYVel, config.world.maxYVel)
     });
 
-    // Update player position if standing on a moving platform
-    if (this.standingOn && this.standingOn.isMoving) {
-      let dx = this.standingOn.body.position.x - this.standingOn.previousPosition.x;
-      let dy = this.standingOn.body.position.y - this.standingOn.previousPosition.y;
-      bd.translate(this.body, { x: dx, y: dy });
-    }
     // Jumping and Wall-jumping
     if (keys["ArrowUp"] || keys["w"] || keys[" "]) {
-      if (this.sensors.bottom) {
-        bd.setVelocity(this.body, { x: this.body.velocity.x, y: -config.player.jumpForce });
+      // If not touching left and right walls, wall-jump
+      if (this.sensors.bottom && !this.sensors.left && !this.sensors.right) {
+        bd.translate(this.body, {
+          x: 0,
+          y: -5
+        });
+        bd.applyForce(this.body, {
+          x: this.body.position.x,
+          y: this.body.position.y + config.player.height / 2
+        }, {
+          x: 0,
+          y: -config.player.jumpForce
+        });
         this.sensors.bottom = false;
-        this.standingOn = null;
         this.emit("jump.up", this);
-      } else if (config.player.actions.includes("wall jump")) {
+        this.i
+      } else {
+        if(config.player.actions.includes("wall jump")) {
           // Jump off a wall depending on which side the player is touching
           if (this.sensors.left) {
             this.speed = config.player.speed/2;

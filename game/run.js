@@ -20,6 +20,20 @@ const configLevel = () => {
   }
 }
 
+function preload() {
+  backgroundImg = loadImage('assets/images/platformindustrial_057.png');
+  // We'll keep the original background image in case you want to switch back
+}
+
+// Add these variables at the top of the file, near other global variables
+let gridLines = 20; // Number of grid lines
+let horizonY = 200; // Position of the horizon line
+let gridColor = 'rgba(255, 255, 255, 0.2)'; // Semi-transparent white for grid lines
+let stars = []; // Array to hold star positions
+let mountains = []; // Array to hold mountain shapes
+let parallaxLayers = 3; // Number of parallax layers
+let parallaxSpeed = [0.1, 0.3, 0.6]; // Different speeds for each layer
+
 function setup() {
   createCanvas(800, 400);
   angleMode(RADIANS);
@@ -34,6 +48,25 @@ function setup() {
   world = engine.world;
   Matter.Runner.run(engine);
 
+  // Generate stars for the background
+  for (let i = 0; i < 100; i++) {
+    stars.push({
+      x: random(width),
+      y: random(horizonY),
+      size: random(1, 3),
+      brightness: random(150, 255)
+    });
+  }
+
+  // Generate mountains for the background
+  for (let i = 0; i < 5; i++) {
+    mountains.push({
+      x: random(width),
+      width: random(100, 200),
+      height: random(50, 100)
+    });
+  }
+
   configLevel();
 }
 
@@ -41,7 +74,7 @@ function setup() {
 let cameraX = 0, cameraY = 0;
 function draw() {
   if(scene === "menu") {
-    background(200);
+    drawParallaxBackground();
     textFont("Impact", 25);
     textAlign(CENTER, CENTER);
     text("WASD/Arrow keys - Move\nSpacebar/W/Up Arrow - Jump/Walljump\nSHIFT + movement key to dash\n\nClick to start", width/2, height/2);
@@ -50,12 +83,17 @@ function draw() {
     }
   }
   else if (scene === "game") {
-    background(200);
-    push();
+    // Update camera position
     if (config.world.camera) {
       cameraX += ((width / 2 - player.body.position.x) - cameraX) / config.world.cameraFriction;
       cameraY += ((height / 2 - player.body.position.y) - cameraY) / config.world.cameraFriction
     }
+
+    // Draw parallax background
+    drawParallaxBackground();
+
+    // Draw game elements
+    push();
     translate(cameraX, cameraY);
 
     bodies.forEach(body => {
@@ -94,14 +132,84 @@ function draw() {
         scene = "win"
       }
     }
-  } 
+  }
   else if(scene === "win") {
-    background(200, 250, 200);
+    drawParallaxBackground();
     textFont("Impact", 25);
     textAlign(CENTER, CENTER);
     fill(0);
     text("You Won!\n\nWant to make your own platformer?\nFork this repl and start reading in README.md!", width/2, height/2);
   }
+}
+
+// Function to draw the parallax background
+function drawParallaxBackground() {
+  // Sky gradient (dark at top to lighter at horizon)
+  noStroke();
+  for (let y = 0; y < horizonY; y++) {
+    let inter = map(y, 0, horizonY, 0, 1);
+    let c = lerpColor(color(20, 24, 82), color(75, 61, 96), inter);
+    stroke(c);
+    line(0, y, width, y);
+  }
+  noStroke();
+
+  // Draw stars with twinkling effect
+  for (let star of stars) {
+    // Calculate star position with parallax effect based on camera movement
+    // Using positive multiplier to move stars in opposite direction of camera/player
+    let parallaxX = star.x + (cameraX * (star.size / 5)); // Smaller stars move slower (appear further)
+
+    // Wrap stars around the screen
+    if (parallaxX < 0) parallaxX += width;
+    if (parallaxX > width) parallaxX -= width;
+
+    // Twinkle effect
+    let twinkle = sin(frameCount * 0.05 + star.x) * 20 + star.brightness;
+    fill(255, 255, 255, twinkle);
+    ellipse(parallaxX, star.y, star.size);
+  }
+
+  // Ground gradient (from horizon to bottom)
+  for (let y = horizonY; y < height; y++) {
+    let inter = map(y, horizonY, height, 0, 1);
+    let c = lerpColor(color(100, 90, 120), color(50, 40, 60), inter);
+    stroke(c);
+    line(0, y, width, y);
+  }
+
+  // Draw grid lines with parallax effect
+  stroke(gridColor);
+  strokeWeight(1);
+
+  // Horizontal grid lines
+  // Horizontal grid lines
+  for (let i = 0; i < gridLines; i++) {
+    let y = map(i, 0, gridLines - 1, horizonY, height);
+    line(0, y, width, y);
+  }
+
+  // Vertical grid lines with perspective effect
+  // Increase the range to ensure grid covers entire visible area
+  for (let i = -gridLines * 2; i < gridLines * 3; i++) {
+    // Make the parallax effect more pronounced for vertical lines
+    let parallaxOffset = (cameraX * 0.8) % (width / gridLines);
+    
+    // Calculate the base position of each vertical line
+    let x = (i * (width / gridLines)) + parallaxOffset;
+    
+    // Widen the range of top endpoints to extend beyond screen edges
+    // This creates a more immersive grid without visible edges
+    let topX = map(i, -gridLines * 2, gridLines * 3, -width * 0.2, width * 1.2);
+    
+    // Only draw if the line will be visible on screen (optimization)
+    if (x >= -50 && x <= width + 50 || topX >= -50 && topX <= width + 50) {
+      // Draw the line from the bottom of the screen to just above the horizon
+      line(x, height, topX, horizonY + 5);
+    }
+  }
+
+  noStroke();
 }
 
 function keyPressed() {
