@@ -20,11 +20,6 @@ const configLevel = () => {
   }
 }
 
-function preload() {
-  backgroundImg = loadImage('assets/images/platformindustrial_057.png');
-  // We'll keep the original background image in case you want to switch back
-}
-
 // Add these variables at the top of the file, near other global variables
 let gridLines = 20; // Number of grid lines
 let horizonY = 200; // Position of the horizon line
@@ -138,16 +133,54 @@ function draw() {
     textFont("Impact", 25);
     textAlign(CENTER, CENTER);
     fill(0);
-    text("You Won!\n\nWant to make your own platformer?\nFork this repl and start reading in README.md!", width/2, height/2);
+    text("You Won!", width/2, height/2);
   }
 }
 
 // Function to draw the parallax background
 function drawParallaxBackground() {
+  // Calculate vertical parallax based on player's relative position in the level
+  // We need to determine the level bounds first
+  let levelHeight = 0;
+  let playerRelativeHeight = 0;
+  
+  if (scene === "game" && player) {
+    // Find the highest and lowest points in the current level
+    let minY = Infinity;
+    let maxY = -Infinity;
+    
+    // Iterate through all level rows to find boundaries
+    for (let y in levels[level].bitmap) {
+      if (parseInt(y) < minY) minY = parseInt(y);
+      if (parseInt(y) > maxY) maxY = parseInt(y);
+    }
+    
+    // Calculate total level height in pixels
+    levelHeight = (maxY - minY + 1) * config.world.blockSize;
+    
+    // Calculate player's relative position (0 at bottom, 1 at top)
+    let playerY = player.body.position.y;
+    let bottomY = maxY * config.world.blockSize;
+    let topY = minY * config.world.blockSize;
+    
+    playerRelativeHeight = map(playerY, bottomY, topY, 0, 1);
+    playerRelativeHeight = constrain(playerRelativeHeight, 0, 1);
+  }
+  
+  // Use a more subtle parallax effect (reduced from 0.4 to 0.25)
+  // Scale based on player's relative height in the level
+  let verticalParallax = -cameraY * 0.25 * playerRelativeHeight;
+  
+  // Adjust horizon based on vertical camera position
+  let adjustedHorizonY = horizonY + verticalParallax;
+
+  // Constrain the horizon movement to a narrower range for subtler effect
+  adjustedHorizonY = constrain(adjustedHorizonY, horizonY - 60, horizonY + 60);
+
   // Sky gradient (dark at top to lighter at horizon)
   noStroke();
-  for (let y = 0; y < horizonY; y++) {
-    let inter = map(y, 0, horizonY, 0, 1);
+  for (let y = 0; y < adjustedHorizonY; y++) {
+    let inter = map(y, 0, adjustedHorizonY, 0, 1);
     let c = lerpColor(color(20, 24, 82), color(75, 61, 96), inter);
     stroke(c);
     line(0, y, width, y);
@@ -157,22 +190,27 @@ function drawParallaxBackground() {
   // Draw stars with twinkling effect
   for (let star of stars) {
     // Calculate star position with parallax effect based on camera movement
-    // Using positive multiplier to move stars in opposite direction of camera/player
     let parallaxX = star.x + (cameraX * (star.size / 5)); // Smaller stars move slower (appear further)
+
+    // Adjust star's vertical position based on horizon movement
+    let starY = star.y * (adjustedHorizonY / horizonY);
 
     // Wrap stars around the screen
     if (parallaxX < 0) parallaxX += width;
     if (parallaxX > width) parallaxX -= width;
 
-    // Twinkle effect
-    let twinkle = sin(frameCount * 0.05 + star.x) * 20 + star.brightness;
-    fill(255, 255, 255, twinkle);
-    ellipse(parallaxX, star.y, star.size);
+    // Only draw stars above the horizon
+    if (starY < adjustedHorizonY) {
+      // Twinkle effect
+      let twinkle = sin(frameCount * 0.05 + star.x) * 20 + star.brightness;
+      fill(255, 255, 255, twinkle);
+      ellipse(parallaxX, starY, star.size);
+    }
   }
 
   // Ground gradient (from horizon to bottom)
-  for (let y = horizonY; y < height; y++) {
-    let inter = map(y, horizonY, height, 0, 1);
+  for (let y = adjustedHorizonY; y < height; y++) {
+    let inter = map(y, adjustedHorizonY, height, 0, 1);
     let c = lerpColor(color(100, 90, 120), color(50, 40, 60), inter);
     stroke(c);
     line(0, y, width, y);
@@ -182,10 +220,9 @@ function drawParallaxBackground() {
   stroke(gridColor);
   strokeWeight(1);
 
-  // Horizontal grid lines
-  // Horizontal grid lines
+  // Horizontal grid lines - now starting from the adjusted horizon
   for (let i = 0; i < gridLines; i++) {
-    let y = map(i, 0, gridLines - 1, horizonY, height);
+    let y = map(i, 0, gridLines - 1, adjustedHorizonY, height);
     line(0, y, width, y);
   }
 
@@ -194,24 +231,67 @@ function drawParallaxBackground() {
   for (let i = -gridLines * 2; i < gridLines * 3; i++) {
     // Make the parallax effect more pronounced for vertical lines
     let parallaxOffset = (cameraX * 0.8) % (width / gridLines);
-    
+
     // Calculate the base position of each vertical line
     let x = (i * (width / gridLines)) + parallaxOffset;
-    
+
     // Widen the range of top endpoints to extend beyond screen edges
     // This creates a more immersive grid without visible edges
     let topX = map(i, -gridLines * 2, gridLines * 3, -width * 0.2, width * 1.2);
-    
+
     // Only draw if the line will be visible on screen (optimization)
     if (x >= -50 && x <= width + 50 || topX >= -50 && topX <= width + 50) {
-      // Draw the line from the bottom of the screen to just above the horizon
-      line(x, height, topX, horizonY + 5);
+      // Draw the line from the bottom of the screen to the adjusted horizon
+      line(x, height, topX, adjustedHorizonY);
     }
   }
 
+  // Redraw the horizon line with the new position to create a clean transition
+  stroke(gridColor);
+  strokeWeight(2); // Slightly thicker for emphasis
+  line(0, adjustedHorizonY, width, adjustedHorizonY);
+  
+  // Add distant mountains with parallax effect
+  noStroke();
+  fill(60, 50, 80, 180);
+  for (let mountain of mountains) {
+    // Apply horizontal parallax to mountains
+    let mountainX = mountain.x + (cameraX * 0.15);
+    // Apply vertical parallax - mountains should follow the horizon
+    let mountainY = adjustedHorizonY - (mountain.height * 0.5);
+
+    // Wrap mountains around screen
+    if (mountainX < -mountain.width) mountainX += width + mountain.width;
+    if (mountainX > width + mountain.width) mountainX -= width + mountain.width;
+
+    // Draw mountain
+    triangle(
+      mountainX, mountainY + mountain.height,
+      mountainX - mountain.width/2, mountainY,
+      mountainX + mountain.width/2, mountainY
+    );
+  }
+
+  // Add clouds that move with vertical parallax
+  fill(255, 255, 255, 80);
+  // Use frameCount to slowly move clouds horizontally over time
+  let cloudOffset = frameCount * 0.2;
+
+  for (let i = 0; i < 5; i++) {
+    // Position clouds at different heights relative to the adjusted horizon
+    let cloudY = adjustedHorizonY - 50 - i * 20;
+    // Only draw clouds if they're above the bottom of the screen
+    if (cloudY < height) {
+      // Create cloud shapes that move with both horizontal and vertical parallax
+      let cloudX = ((i * 200) + cloudOffset) % (width + 400) - 200;
+      ellipse(cloudX, cloudY, 80, 40);
+      ellipse(cloudX + 40, cloudY - 10, 70, 30);
+      ellipse(cloudX - 40, cloudY - 5, 60, 25);
+    }
+  }
+  
   noStroke();
 }
-
 function keyPressed() {
   keys[key] = true;
 }
