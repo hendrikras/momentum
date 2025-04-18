@@ -63,6 +63,7 @@ function setup() {
   }
 
   configLevel();
+  connectRopeBlocks();
 }
 
 // Camera Coordinates
