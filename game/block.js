@@ -423,7 +423,161 @@ class Block extends Body {
       }
     }
   }
+// Add this function to the Block class or to the connectRopeBlocks function
+ createRopeSegments(topRope, bottomRope) {
+  // Calculate total rope length based on the distance between top and bottom anchors
+  const totalLength = bottomRope.anchorY + config.world.blockSize - topRope.anchorY;
+
+  // Calculate total number of segments
+  const totalSegments = Math.max(5, Math.floor(totalLength / 20)); // Ensure at least 5 segments
+
+  // Create rope segments
+  let ropeSegments = [];
+  let constraints = [];
+  const segmentLength = totalLength / totalSegments;
+  const segmentRadius = 5; // Small radius for rope segments
+
+// Create all segments
+for (let i = 0; i < totalSegments; i++) {
+  let segment = Bodies.circle(
+    topRope.anchorX,
+    topRope.anchorY + (i + 0.5) * segmentLength,
+    topRope.segmentRadius,
+    {
+      // Allow collision with player but not with other objects
+      collisionFilter: {
+        category: 0x0002,  // Rope category
+        mask: 0x0001       // Only collide with player category
+      },
+      density: 0.001,
+      friction: 0.5,
+      frictionAir: 0.05,
+      label: 'ropeSegment' // This is the critical part - ensure the label is set
+    }
+  );
+  
+  // Explicitly set the label again to ensure it's properly set
+  segment.label = 'ropeSegment';
+  
+  ropeSegments.push(segment);
 }
+
+  return {
+    segments: ropeSegments,
+    segmentLength: segmentLength
+  };
+}
+  connectRopeBlocks() {
+  if (pendingRopeBlocks.length === 0) return;
+
+  // Group rope blocks by their x-position (within a small tolerance)
+  const ropeGroups = {};
+
+  pendingRopeBlocks.forEach(ropeBlock => {
+    // Round x position to the nearest 10 pixels to group nearby ropes
+    const xKey = Math.round(ropeBlock.anchorX / 10) * 10;
+
+    if (!ropeGroups[xKey]) {
+      ropeGroups[xKey] = [];
+    }
+
+    ropeGroups[xKey].push(ropeBlock);
+  });
+
+  // Process each group of vertically aligned ropes
+  Object.values(ropeGroups).forEach(ropeGroup => {
+    if (ropeGroup.length === 0) return;
+
+    // Sort by y-position (top to bottom)
+    ropeGroup.sort((a, b) => a.anchorY - b.anchorY);
+
+    // For each group, create a single continuous rope
+    const topRope = ropeGroup[0];
+
+    // Keep only the top anchor and remove all other anchors from the world
+    for (let i = 1; i < ropeGroup.length; i++) {
+      // Mark these blocks as "hidden" so they don't get drawn
+      ropeGroup[i].isHidden = true;
+
+      // Remove their bodies from the world
+      World.remove(world, ropeGroup[i].body);
+    }
+
+    // Calculate total rope length based on the distance between top and bottom anchors
+    const bottomRope = ropeGroup[ropeGroup.length - 1];
+    const totalLength = bottomRope.anchorY + config.world.blockSize - topRope.anchorY;
+
+    // Calculate total number of segments
+    const totalSegments = Math.max(5, Math.floor(totalLength / 20)); // Ensure at least 5 segments
+
+    // Create rope segments
+    let ropeSegments = [];
+    let constraints = [];
+    const segmentLength = totalLength / totalSegments;
+
+    // Create all segments
+    for (let i = 0; i < totalSegments; i++) {
+      let segment = Bodies.circle(
+          topRope.anchorX,
+          topRope.anchorY + (i + 0.5) * segmentLength,
+          topRope.segmentRadius,
+          {
+            // Allow collision with player but not with other objects
+            collisionFilter: {
+              category: 0x0002,  // Rope category
+              mask: 0x0001       // Only collide with player category
+            },
+            density: 0.001,
+            friction: 0.5,
+            frictionAir: 0.05,
+            label: 'ropeSegment'
+          }
+      );
+      ropeSegments.push(segment);
+    }
+
+    // Create constraints between segments
+    constraints.push(Constraint.create({
+      bodyA: topRope.body,
+      bodyB: ropeSegments[0],
+      length: segmentLength,
+      stiffness: 0.9
+    }));
+
+    for (let i = 1; i < totalSegments; i++) {
+      constraints.push(Constraint.create({
+        bodyA: ropeSegments[i-1],
+        bodyB: ropeSegments[i],
+        length: segmentLength,
+        stiffness: 0.9
+      }));
+    }
+
+    // Add all segments and constraints to the world
+    World.add(world, [...ropeSegments, ...constraints]);
+
+    // Assign segments and constraints to the top rope block
+    topRope.ropeSegments = ropeSegments;
+    topRope.constraints = constraints;
+    topRope.lastRopeSegment = ropeSegments[ropeSegments.length - 1];
+    topRope.isTopRope = true;
+
+    // Share the rope segments with all blocks in the group
+    // (even though their bodies are removed, we keep a reference for drawing)
+    for (let i = 1; i < ropeGroup.length; i++) {
+      ropeGroup[i].ropeSegments = ropeSegments;
+      ropeGroup[i].constraints = constraints;
+      ropeGroup[i].lastRopeSegment = ropeSegments[ropeSegments.length - 1];
+
+      if (i === ropeGroup.length - 1) {
+        ropeGroup[i].isBottomRope = true;
+      }
+    }
+  });
+    pendingRopeBlocks = [];
+  }
+}
+
 
 const configBlockEvents = (block) => {
   block.on("collide", (data) => {

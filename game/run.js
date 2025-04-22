@@ -9,7 +9,20 @@ const configLevel = () => {
       let char = row[x];
       if (char !== " ") {
         if (char === "@") {
-          player = new Player(Bodies.rectangle(x * config.world.blockSize, y * config.world.blockSize, config.player.width, config.player.height));
+          // Create player with proper collision filtering
+          let playerBody = Bodies.rectangle(
+            x * config.world.blockSize, 
+            y * config.world.blockSize, 
+            config.player.width, 
+            config.player.height,
+            {
+              collisionFilter: {
+                category: 0x0001,  // Player category
+                mask: 0xFFFF       // Collide with everything
+              }
+            }
+          );
+          player = new Player(playerBody);
           configPlayerEvents();
           bodies.push(player);
         } else {
