@@ -1,5 +1,5 @@
 // Import some stuff from matter.js
-const { Engine, World, Bodies, Vector, Collision, SAT, Common } = Matter;
+const { Engine, World, Bodies, Vector, Collision, SAT, Common, Constraint } = Matter;
 const bd = Matter.Body;
 
 // Configure Poly-decomp so that polygon-polygon collisions work
