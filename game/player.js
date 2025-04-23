@@ -380,7 +380,93 @@ class Player extends Body {
     }
     //this.angleCollisions.some(x => x === 180)
     //this.angleCollisions.some(x => x === 0)
+    const standingOnSeesaw = bodies.some(body =>
+        body.type === "block" &&
+        body.isPivoting &&
+        body.playerOnSeesaw &&
+        this.sensors.bottom
+    );
 
+    if (standingOnSeesaw) {
+      // Find the seesaw the player is standing on
+      const seesaw = bodies.find(body =>
+          body.type === "block" &&
+          body.isPivoting &&
+          body.playerOnSeesaw
+      );
+
+      if (seesaw) {
+        // Calculate the player's position relative to the seesaw pivot
+        const relativeX = this.body.position.x - seesaw.body.position.x;
+        
+        // Calculate the seesaw's surface angle
+        const seesawAngle = seesaw.body.angle;
+        
+        // 1. Make the seesaw more rigid by increasing its inertia and mass
+        // This prevents excessive bouncing and makes the pivot more stable
+        if (!seesaw.physicsAdjusted) {
+          // Only do this once per seesaw
+          seesaw.body.inertia = seesaw.body.inertia * 2;
+          seesaw.body.mass = seesaw.body.mass * 1.5;
+          seesaw.physicsAdjusted = true;
+        }
+        
+        // 2. Adjust player friction based on the seesaw angle
+        // Higher friction on steeper angles to prevent sliding
+        const tiltFactor = Math.abs(Math.sin(seesawAngle));
+        this.body.friction = 0.2 + tiltFactor * 0.6; // 0.2 to 0.8 based on tilt
+        
+        // 3. For steep downward slopes, apply a small downward force
+        // This helps prevent the player from falling through the platform
+        if (seesawAngle * relativeX > 0 && Math.abs(seesawAngle) > 0.2) {
+          // The player is on the downward side of the seesaw
+          // Apply a small force to keep the player pressed against the platform
+          Matter.Body.applyForce(this.body, this.body.position, {
+            x: 0,
+            y: 0.001 // Very small downward force
+          });
+        }
+        
+        // 4. For steep upward slopes, reduce bouncing by dampening vertical velocity
+        if (seesawAngle * relativeX < 0 && Math.abs(seesawAngle) > 0.2) {
+          // The player is on the upward side of the seesaw
+          // If the player is moving upward (bouncing), dampen the velocity
+          if (this.body.velocity.y < 0) {
+            Matter.Body.setVelocity(this.body, {
+              x: this.body.velocity.x,
+              y: this.body.velocity.y * 0.8 // Reduce upward velocity
+            });
+          }
+        }
+        
+        // 5. Make the seesaw respond more to player position
+        // Apply torque based on player position to make the seesaw tilt more naturally
+        const torqueFactor = 0.0002; // Adjust this value to control sensitivity
+        Matter.Body.applyForce(seesaw.body, 
+          {x: seesaw.body.position.x + relativeX, y: seesaw.body.position.y},
+          {x: 0, y: relativeX > 0 ? torqueFactor : -torqueFactor}
+        );
+        
+        // 6. Ensure the player's horizontal velocity matches the seesaw's rotation
+        // This prevents the player from sliding off steep angles
+        if (Math.abs(seesawAngle) > 0.3) { // Only for steep angles
+          // Calculate the tangential velocity at the player's position
+          const tangentialVelocity = seesaw.body.angularVelocity * relativeX;
+          
+          // Only apply if the seesaw is moving significantly
+          if (Math.abs(seesaw.body.angularVelocity) > 0.01) {
+            // Get current velocity
+            const currentVel = this.body.velocity;
+            
+            // Apply a correction (50% seesaw motion, 50% player control)
+            Matter.Body.setVelocity(this.body, {
+              x: currentVel.x * 0.5 + tangentialVelocity * 0.5,
+              y: currentVel.y
+            });
+          }
+        }
+      }
+    }
 // Handle rope swinging physics
 if (this.isGrabbingRope && this.ropeAnchor) {
   // Calculate the vector from anchor to player
