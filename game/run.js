@@ -31,6 +31,16 @@ const configLevel = () => {
       }
     }
   }
+  
+  // Connect rope blocks after all blocks are created
+  if (typeof connectRopeBlocks === 'function') {
+    connectRopeBlocks();
+  }
+  
+  // Connect seesaw blocks after all blocks are created
+  if (typeof connectSeesawBlocks === 'function') {
+    connectSeesawBlocks();
+  }
 }
 
 // Add these variables at the top of the file, near other global variables
