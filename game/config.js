@@ -14,6 +14,6 @@ let config = {
     acceleration: 0.5,
     decceleration: 5,
     dashTime: 50,
-    actions: ["wall jump", "dash"],
+    actions: ["wall jump"],
   },
 }

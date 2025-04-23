@@ -378,6 +378,8 @@ class Player extends Body {
       // Is the player touching a block on the right?
       right: supports.filter(s => Math.round(s.y) !== Math.round(this.body.position.y + config.player.height / 2)).some(s => Math.round(s.x) === Math.round(player.body.position.x + config.player.width / 2))
     }
+
+
     //this.angleCollisions.some(x => x === 180)
     //this.angleCollisions.some(x => x === 0)
     const standingOnSeesaw = bodies.some(body =>
@@ -467,84 +469,243 @@ class Player extends Body {
         }
       }
     }
-// Handle rope swinging physics
-if (this.isGrabbingRope && this.ropeAnchor) {
-  // Calculate the vector from anchor to player
-  const dx = this.body.position.x - this.ropeAnchor.position.x;
-  const dy = this.body.position.y - this.ropeAnchor.position.y;
-  const ropeAngle = Math.atan2(dy, dx);
-  const perpAngle = ropeAngle + Math.PI/2;
-  
-  // Apply forces for swinging control
-  if (keys["ArrowLeft"] || keys["a"]) {
-    // Apply force perpendicular to the rope in the counter-clockwise direction
-    Matter.Body.applyForce(this.body, this.body.position, {
-      x: Math.cos(perpAngle) * 0.002,
-      y: Math.sin(perpAngle) * 0.002
-    });
-  }
-  
-  if (keys["ArrowRight"] || keys["d"]) {
-    // Apply force perpendicular to the rope in the clockwise direction
-    Matter.Body.applyForce(this.body, this.body.position, {
-      x: Math.cos(perpAngle + Math.PI) * 0.002,
-      y: Math.sin(perpAngle + Math.PI) * 0.002
-    });
-  }
-  
-  // Climbing up and down the rope
-  if (keys["ArrowUp"] || keys["w"]) {
-    // Shorten the constraint length to climb up
-    if (this.anchorConstraint && this.anchorConstraint.length > 50) {
-      this.anchorConstraint.length -= 2;
+
+    // Add new player physics properties if they don't exist
+    if (this.airControl === undefined) {
+      // Air control factor - lower means less control in air
+      this.airControl = 0.6;
+
+      // Slope momentum factors
+      this.slopeAccelerationFactor = 1.5;  // Downhill acceleration boost
+      this.slopeDecelerationFactor = 1.2;  // Uphill deceleration
     }
-  }
-  
-  if (keys["ArrowDown"] || keys["s"]) {
-    // Lengthen the constraint length to climb down
-    this.anchorConstraint.length += 2;
-  }
-  
-  // Release rope with E key
-  if (keys["e"] || keys["E"]) {
-    this.releaseRope();
-    
-    // Apply a jump impulse when releasing with jump
-    // if (keys["ArrowUp"] || keys["w"] || keys[" "]) {
-    //   // Calculate jump direction - jump away from the rope anchor
-    //   const jumpMagnitude = config.player.jumpForce * 0.8;
-    //   const jumpAngle = ropeAngle - Math.PI/4; // Jump up and away from anchor
-    //
-    //   Matter.Body.setVelocity(this.body, {
-    //     x: Math.cos(jumpAngle) * jumpMagnitude,
-    //     y: Math.sin(jumpAngle) * jumpMagnitude
-    //   });
-    // }
-  }
-  
-  // Skip the rest of the normal movement code
-  return;
-}
+
+    // Handle slope movement before applying regular movement controls
+    let onSlope = false;
+    let slopeType = null;
+    let slopeModifier = 1.0; // Default modifier (no effect)
+
+    // Check if player is on a slope by examining block types
+    if (this.sensors.bottom) {
+      // Find the block the player is standing on
+      const standingBlock = bodies.find(body =>
+          body.type === "block" &&
+          body.supports.some(s => Math.round(s.y) === Math.round(this.body.position.y + config.player.height / 2))
+      );
+
+      if (standingBlock && standingBlock.t) {
+        // Check if it's a slope block - use single slashes
+        if (["<", ">", "/", "\\"].includes(standingBlock.t)) {
+          onSlope = true;
+          slopeType = standingBlock.t;
+
+          // Determine if moving downhill based on slope type and movement direction
+          const movingRight = keys["ArrowRight"] || keys["d"];
+          const movingLeft = keys["ArrowLeft"] || keys["a"];
+
+          if (movingRight && (slopeType === ">" || slopeType === "\\")) {
+            // Moving right on a right-facing slope (downhill)
+            slopeModifier = 1.3; // Accelerate downhill
+          } else if (movingLeft && (slopeType === "<" || slopeType === "/")) {
+            // Moving left on a left-facing slope (downhill)
+            slopeModifier = 1.3; // Accelerate downhill
+          } else if (movingRight && (slopeType === "<" || slopeType === "/")) {
+            // Moving right on a left-facing slope (uphill)
+            slopeModifier = 0.7; // Decelerate uphill
+          } else if (movingLeft && (slopeType === ">" || slopeType === "\\")) {
+            // Moving left on a right-facing slope (uphill)
+            slopeModifier = 0.7; // Decelerate uphill
+          }
+        } else if (standingBlock.t === "0") {
+          // On flat ground - normal movement
+          slopeModifier = 1.0;
+        }
+      }
+    }
+    // Handle rope swinging physics
+    if (this.isGrabbingRope && this.ropeAnchor) {
+      // Calculate the vector from anchor to player
+      const dx = this.body.position.x - this.ropeAnchor.position.x;
+      const dy = this.body.position.y - this.ropeAnchor.position.y;
+      const ropeAngle = Math.atan2(dy, dx);
+      const perpAngle = ropeAngle + Math.PI/2;
+
+      // Apply forces for swinging control
+      if (keys["ArrowLeft"] || keys["a"]) {
+        // Apply force perpendicular to the rope in the counter-clockwise direction
+        Matter.Body.applyForce(this.body, this.body.position, {
+          x: Math.cos(perpAngle) * 0.002,
+          y: Math.sin(perpAngle) * 0.002
+        });
+      }
+
+      if (keys["ArrowRight"] || keys["d"]) {
+        // Apply force perpendicular to the rope in the clockwise direction
+        Matter.Body.applyForce(this.body, this.body.position, {
+          x: Math.cos(perpAngle + Math.PI) * 0.002,
+          y: Math.sin(perpAngle + Math.PI) * 0.002
+        });
+      }
+
+      // Climbing up and down the rope
+      if (keys["ArrowUp"] || keys["w"]) {
+        // Shorten the constraint length to climb up
+        if (this.anchorConstraint && this.anchorConstraint.length > 50) {
+          this.anchorConstraint.length -= 2;
+        }
+      }
+
+      if (keys["ArrowDown"] || keys["s"]) {
+        // Lengthen the constraint length to climb down
+        this.anchorConstraint.length += 2;
+      }
+
+      // Release rope with E key
+      if (keys["e"] || keys["E"]) {
+        this.releaseRope();
+      }
+
+      // Skip the rest of the normal movement codeƒ
+      return;
+    } else {
 
     // Moving Right
     if (keys["ArrowRight"] || keys["d"]) {
-      if(this.speed < config.player.speed) this.speed += config.player.acceleration;
-      else this.speed += (config.player.speed - this.speed) / config.player.decceleration/5
-      this.emit("move.left", this);
+      // Apply slope modifier to acceleration
+      const effectiveAcceleration = config.player.acceleration * slopeModifier;
+
+      // When moving uphill (right on left-facing slope), use a fixed lower max speed
+      if (onSlope && slopeType && (slopeType === "<" || slopeType === "/")) {
+        // Moving right on a left-facing slope (uphill) - use fixed lower speed
+        const uphillMaxSpeed = config.player.speed * 0.7;
+
+        if (this.speed < uphillMaxSpeed) {
+          // Apply acceleration
+          this.speed += effectiveAcceleration;
+
+          // Cap at uphillMaxSpeed
+          if (this.speed > uphillMaxSpeed) {
+            this.speed = uphillMaxSpeed;
+          }
+        } else {
+          // Already at or beyond max uphill speed, maintain it
+          this.speed = uphillMaxSpeed;
+        }
+      } else {
+        // Calculate max speed including any downhill momentum
+        const maxSpeed = config.player.speed * slopeModifier + (this.downhillMomentum || 0);
+
+        // Normal movement (downhill or flat)
+        if (this.speed < maxSpeed) {
+          this.speed += effectiveAcceleration;
+
+          // Cap at max speed
+          if (this.speed > maxSpeed) {
+            this.speed = maxSpeed;
+          }
+        } else {
+          // Gradually approach max speed
+          this.speed += (maxSpeed - this.speed) / config.player.decceleration / 5;
+        }
+      }
+      this.emit("move.right", this);
     }
 
     // Moving Left
     if (keys["ArrowLeft"] || keys["a"]) {
-      if(this.speed > -config.player.speed) this.speed -= config.player.acceleration;
-      else this.speed += (-config.player.speed - this.speed) / config.player.decceleration/5
-      this.emit("move.right", this);
+      // Apply slope modifier to acceleration
+      const effectiveAcceleration = config.player.acceleration * slopeModifier;
+
+      // When moving uphill (left on right-facing slope), use a fixed lower max speed
+      if (onSlope && slopeType && (slopeType === ">" || slopeType === "\\")) {
+        // Moving left on a right-facing slope (uphill) - use fixed lower speed
+        const uphillMaxSpeed = config.player.speed * 0.7;
+
+        // For left movement, we need to handle negative speed values correctly
+        if (this.speed > -uphillMaxSpeed) {
+          // Apply acceleration (which decreases speed since we're moving left)
+          this.speed -= effectiveAcceleration;
+
+          // Cap at negative uphillMaxSpeed
+          if (this.speed < -uphillMaxSpeed) {
+            this.speed = -uphillMaxSpeed;
+          }
+        } else {
+          // Already at or beyond max uphill speed, maintain it
+          this.speed = -uphillMaxSpeed;
+        }
+      } else {
+        // Calculate max speed including any downhill momentum
+        const maxSpeed = config.player.speed * slopeModifier + (this.downhillMomentum || 0);
+
+        // Normal movement (downhill or flat)
+        if (this.speed > -maxSpeed) {
+          this.speed -= effectiveAcceleration;
+
+          // Cap at negative max speed
+          if (this.speed < -maxSpeed) {
+            this.speed = -maxSpeed;
+          }
+        } else {
+          // Gradually approach max speed
+          this.speed += (-maxSpeed - this.speed) / config.player.decceleration / 5;
+        }
+      }
+      this.emit("move.left", this);
     }
 
     // If not moving right or left, slow down
-    if(!keys["ArrowRight"] && !keys["ArrowLeft"] && !keys["a"] && !keys["d"]){
-      this.speed += -this.speed/config.player.decceleration;
+    if (!keys["ArrowRight"] && !keys["ArrowLeft"] && !keys["a"] && !keys["d"]) {
+      // Apply a stronger deceleration on uphill slopes
+      const decelerationFactor = onSlope && slopeModifier < 1.0 ? 3 : 1;
+
+      // If we just came off a downhill slope, decelerate more gradually
+      if (!onSlope && Math.abs(this.speed) > config.player.speed) {
+        // Gradual deceleration when transitioning from downhill to flat
+        this.speed *= 0.98; // Slow down by 2% each frame
+      } else {
+        // Normal deceleration
+        this.speed += -this.speed / (config.player.decceleration / decelerationFactor);
+      }
     }
 
+// Store the previous slope state to detect transitions
+    if (!this.prevOnSlope) this.prevOnSlope = false;
+    if (!this.prevSlopeType) this.prevSlopeType = null;
+    if (!this.downhillMomentum) this.downhillMomentum = 0;
+
+// Detect transition from downhill slope to flat ground
+    if (this.prevOnSlope && !onSlope) {
+      // Check if we were on a downhill slope
+      const wasMovingDownhill =
+          (this.prevSlopeType === ">" && this.speed > 0) ||
+          (this.prevSlopeType === "\\" && this.speed > 0) ||
+          (this.prevSlopeType === "<" && this.speed < 0) ||
+          (this.prevSlopeType === "/" && this.speed < 0);
+
+      if (wasMovingDownhill) {
+        // Store the excess speed as downhill momentum
+        this.downhillMomentum = Math.abs(this.speed) - config.player.speed;
+        if (this.downhillMomentum < 0) this.downhillMomentum = 0;
+
+        // Cap the momentum to prevent excessive speeds
+        this.downhillMomentum = Math.min(this.downhillMomentum, config.player.speed * 0.5);
+      }
+    }
+
+// Apply downhill momentum to max speed on flat ground
+    if (!onSlope && this.downhillMomentum > 0) {
+      // Gradually reduce the momentum
+      this.downhillMomentum *= 0.98;
+
+      // If momentum is very small, reset it
+      if (this.downhillMomentum < 0.1) this.downhillMomentum = 0;
+    }
+
+// Update previous slope state for next frame
+    this.prevOnSlope = onSlope;
+    this.prevSlopeType = slopeType;
+}
     // Apply Velocity
     bd.setVelocity(this.body, {
       x: this.speed,
@@ -615,30 +776,6 @@ if (this.isGrabbingRope && this.ropeAnchor) {
       }
     }
 
-    // Dash
-    if(config.player.actions.includes("dash")){
-      if(!this.canDash) this.canDash = this.sensors.bottom;
-      if(this.dashTimer > 0) this.dashTimer--;
-      if(keys["Shift"] && this.dashTimer <= 0 && this.canDash) {
-        if((keys["ArrowRight"] || keys["d"]) && (!keys["ArrowLeft"] && !keys["a"])){
-          this.speed = config.player.speed * 4;
-          bd.setVelocity(this.body, {
-            x: this.speed,
-            y: -config.player.speed * 0.5
-          });
-        } else if((keys["ArrowLeft"] || keys["a"]) && (!keys["ArrowRight"] && !keys["d"])) {
-          this.speed = config.player.speed * -4;
-          bd.setVelocity(this.body, {
-            x: this.speed,
-            y: -config.player.speed * 0.5
-          });
-        }
-        this.emit("dash", this);
-        this.canDash = false;
-        this.dashTimer = config.player.dashTime;
-      }
-    }
-
     // Dying
     if(this.body.position.y > (levels[level].bitmap.length * config.world.blockSize) + 500) {
       this.died = true;
@@ -647,8 +784,6 @@ if (this.isGrabbingRope && this.ropeAnchor) {
 
 grabRope(ropeSegment) {
   if (this.isGrabbingRope) return; // Already grabbing a rope
-  
-  console.log("Grabbing rope segment:", ropeSegment.label);
   
   // Store the original collision filters
   this.originalPlayerCategory = this.body.collisionFilter.category;
@@ -749,8 +884,6 @@ grabRope(ropeSegment) {
 releaseRope() {
   if (!this.isGrabbingRope) return;
 
-  console.log("Releasing rope");
-
   // Store current velocity before removing constraints
   const currentVelocity = {
     x: this.body.velocity.x,
@@ -813,12 +946,6 @@ const configPlayerEvents = () => {
   Events.on(engine, 'collisionStart', function(event) {
     const pairs = event.pairs;
 
-    // Debug: Log all collision pairs to see what's happening
-    console.log("Collision pairs:", pairs.map(p => ({
-      bodyA: p.bodyA.label || 'unlabeled',
-      bodyB: p.bodyB.label || 'unlabeled'
-    })));
-
     for (let i = 0; i < pairs.length; i++) {
       const pair = pairs[i];
       
@@ -828,10 +955,7 @@ const configPlayerEvents = () => {
       
       if (isPlayerInvolved) {
         const otherBody = pair.bodyA === playerBody ? pair.bodyB : pair.bodyA;
-        
-        // Debug: Log the other body to see what it is
-        console.log("Player collision with:", otherBody.label || 'unlabeled body');
-        
+
         // Check if the other body is a rope segment
         // Try multiple ways to identify rope segments
         const isRopeSegment = 
@@ -840,8 +964,6 @@ const configPlayerEvents = () => {
           (otherBody.parent && otherBody.parent.label === 'ropeSegment');
         
         if (isRopeSegment) {
-          console.log("Rope segment collision detected!");
-          
           // Only grab the rope if the player is not already grabbing one
           // and if the player is moving downward (more natural grab)
           if (!player.isGrabbingRope && player.body.velocity.y > 0) {
