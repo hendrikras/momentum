@@ -11,9 +11,9 @@ const configLevel = () => {
         if (char === "@") {
           // Create player with proper collision filtering
           let playerBody = Bodies.rectangle(
-            x * config.world.blockSize, 
-            y * config.world.blockSize, 
-            config.player.width, 
+            x * config.world.blockSize,
+            y * config.world.blockSize,
+            config.player.width,
             config.player.height,
             {
               collisionFilter: {
@@ -31,12 +31,12 @@ const configLevel = () => {
       }
     }
   }
-  
+
   // Connect rope blocks after all blocks are created
   if (typeof connectRopeBlocks === 'function') {
     connectRopeBlocks();
   }
-  
+
   // Connect seesaw blocks after all blocks are created
   if (typeof connectSeesawBlocks === 'function') {
     connectSeesawBlocks();
@@ -49,8 +49,6 @@ let horizonY = 200; // Position of the horizon line
 let gridColor = 'rgba(255, 255, 255, 0.2)'; // Semi-transparent white for grid lines
 let stars = []; // Array to hold star positions
 let mountains = []; // Array to hold mountain shapes
-let parallaxLayers = 3; // Number of parallax layers
-let parallaxSpeed = [0.1, 0.3, 0.6]; // Different speeds for each layer
 
 function setup() {
   createCanvas(800, 400);
@@ -61,7 +59,7 @@ function setup() {
   engine = Engine.create({
     gravity: {
       y: config.world.gravity
-    }
+    },
   });
   world = engine.world;
   Matter.Runner.run(engine);
@@ -96,7 +94,7 @@ function draw() {
     drawParallaxBackground();
     textFont("Impact", 25);
     textAlign(CENTER, CENTER);
-    text("WASD/Arrow keys - Move\nSpacebar/W/Up Arrow - Jump/Walljump\nSHIFT + movement key to dash\n\nClick to start", width/2, height/2);
+    text("WASD/Arrow keys - Move\nSpacebar/W/Up Arrow - Jump/Walljump\n\nClick to start", width/2, height/2);
     if(mouseIsPressed){
       scene = "game";
     }
