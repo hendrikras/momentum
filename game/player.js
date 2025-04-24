@@ -379,9 +379,6 @@ class Player extends Body {
       right: supports.filter(s => Math.round(s.y) !== Math.round(this.body.position.y + config.player.height / 2)).some(s => Math.round(s.x) === Math.round(player.body.position.x + config.player.width / 2))
     }
 
-
-    //this.angleCollisions.some(x => x === 180)
-    //this.angleCollisions.some(x => x === 0)
     const standingOnSeesaw = bodies.some(body =>
         body.type === "block" &&
         body.isPivoting &&
@@ -474,10 +471,6 @@ class Player extends Body {
     if (this.airControl === undefined) {
       // Air control factor - lower means less control in air
       this.airControl = 0.6;
-
-      // Slope momentum factors
-      this.slopeAccelerationFactor = 1.5;  // Downhill acceleration boost
-      this.slopeDecelerationFactor = 1.2;  // Uphill deceleration
     }
 
     // Handle slope movement before applying regular movement controls

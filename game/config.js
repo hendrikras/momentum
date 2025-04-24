@@ -10,7 +10,7 @@ let config = {
     width: 40,
     height: 80,
     jumpForce: 0.15,
-    speed: 7,
+    speed: 10,
     acceleration: 0.5,
     decceleration: 5,
     dashTime: 50,
