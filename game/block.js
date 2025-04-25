@@ -237,9 +237,10 @@ class Block extends Body {
         World.remove(world, this.body);
 
         // Play a glass breaking sound if available
-        if (typeof playSound === 'function') {
-            playSound('glass_break.mp3');
-        }
+        // if (typeof playSound === 'function') {
+        //     playSound('glass_break.mp3');
+        // }
+        audioManager.play("glass");
 
         // Create glass particles
         const blockWidth = config.world.blockSize;

@@ -49,9 +49,14 @@ let horizonY = 200; // Position of the horizon line
 let gridColor = 'rgba(255, 255, 255, 0.2)'; // Semi-transparent white for grid lines
 let stars = []; // Array to hold star positions
 let mountains = []; // Array to hold mountain shapes
-
+function preload() {
+  loadStrings('data.txt', handleData);
+}
+function handleData(data) {
+  audioManager.preload(data);
+}
 function setup() {
-  createCanvas(800, 400);
+  createCanvas(1000, 500);
   angleMode(RADIANS);
   rectMode(CENTER);
   noStroke();
@@ -97,6 +102,7 @@ function draw() {
     text("WASD/Arrow keys - Move\nSpacebar/W/Up Arrow - Jump/Walljump\n\nClick to start", width/2, height/2);
     if(mouseIsPressed){
       scene = "game";
+      audioManager.loop("background");
     }
   }
   else if (scene === "game") {

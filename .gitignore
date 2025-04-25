@@ -1,0 +1,4 @@
+*.zip
+*.pem
+dist/
+node_modules/
