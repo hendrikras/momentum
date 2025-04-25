@@ -282,39 +282,101 @@ function drawParallaxBackground() {
   // Add distant mountains with parallax effect
   noStroke();
   fill(60, 50, 80, 180);
+  // Add distant mountains with parallax effect
+  noStroke();
+  fill(60, 50, 80, 180);
   for (let mountain of mountains) {
     // Apply horizontal parallax to mountains
     let mountainX = mountain.x + (cameraX * 0.15);
-    // Apply vertical parallax - mountains should follow the horizon
-    let mountainY = adjustedHorizonY - (mountain.height * 0.5);
+
+    // Position the base of the pyramid 1px above the horizon line
+    let baseY = adjustedHorizonY - 1;
 
     // Wrap mountains around screen
     if (mountainX < -mountain.width) mountainX += width + mountain.width;
     if (mountainX > width + mountain.width) mountainX -= width + mountain.width;
 
-    // Draw mountain
+    // Draw pyramid (inverted triangle)
     triangle(
-      mountainX, mountainY + mountain.height,
-      mountainX - mountain.width/2, mountainY,
-      mountainX + mountain.width/2, mountainY
+      mountainX, baseY - mountain.height, // Top point
+      mountainX - mountain.width/2, baseY, // Bottom left
+      mountainX + mountain.width/2, baseY  // Bottom right
+    );
+  }
+
+  // Add distant mountains with parallax effect
+  noStroke();
+  fill(60, 50, 80, 180);
+  for (let mountain of mountains) {
+    // Apply horizontal parallax to mountains
+    let mountainX = mountain.x + (cameraX * 0.15);
+
+    // Position the base of the pyramid 1px above the horizon line
+    let baseY = adjustedHorizonY - 1;
+
+    // Wrap mountains around screen
+    if (mountainX < -mountain.width) mountainX += width + mountain.width;
+    if (mountainX > width + mountain.width) mountainX -= width + mountain.width;
+
+    // Draw pyramid (inverted triangle)
+    triangle(
+      mountainX, baseY - mountain.height, // Top point
+      mountainX - mountain.width/2, baseY, // Bottom left
+      mountainX + mountain.width/2, baseY  // Bottom right
     );
   }
 
   // Add clouds that move with vertical parallax
-  fill(255, 255, 255, 80);
-  // Use frameCount to slowly move clouds horizontally over time
-  let cloudOffset = frameCount * 0.2;
+  // Create an array of cloud configurations if it doesn't exist yet
+  if (!window.cloudConfigs) {
+    window.cloudConfigs = [];
 
-  for (let i = 0; i < 5; i++) {
-    // Position clouds at different heights relative to the adjusted horizon
-    let cloudY = adjustedHorizonY - 50 - i * 20;
-    // Only draw clouds if they're above the bottom of the screen
-    if (cloudY < height) {
-      // Create cloud shapes that move with both horizontal and vertical parallax
-      let cloudX = ((i * 200) + cloudOffset) % (width + 400) - 200;
-      ellipse(cloudX, cloudY, 80, 40);
-      ellipse(cloudX + 40, cloudY - 10, 70, 30);
-      ellipse(cloudX - 40, cloudY - 5, 60, 25);
+    // Divide the sky into sections to prevent overlap
+    let skyWidth = width + 400; // Extra width to account for movement
+    let skyHeight = adjustedHorizonY * 0.3; // Top 30% of sky
+
+    // Create a grid of possible cloud positions
+    let gridCols = 4;
+    let gridRows = 3;
+    let cellWidth = skyWidth / gridCols;
+    let cellHeight = skyHeight / gridRows;
+
+    // Place one cloud in each grid cell with some randomness
+    for (let row = 0; row < gridRows; row++) {
+      for (let col = 0; col < gridCols; col++) {
+        // Skip some cells randomly to create more natural distribution
+        if (random() < 0.3) continue;
+
+        window.cloudConfigs.push({
+          // Position within the cell plus some randomness
+          xOffset: col * cellWidth + random(0.2, 0.8) * cellWidth,
+          yOffset: row * cellHeight + random(0.2, 0.8) * cellHeight,
+          speed: random(0.03, 0.12), // Slower movement for more realism
+          size: random(0.7, 1.2),    // Random size multiplier
+          opacity: random(60, 90)    // Random opacity
+        });
+      }
+    }
+  }
+
+  // Draw each cloud with its unique configuration
+  for (let cloud of window.cloudConfigs) {
+    // Calculate cloud position with unique movement pattern
+    let cloudX = (cloud.xOffset + (frameCount * cloud.speed)) % (width + 400) - 200;
+
+    // Position clouds in the top 30% of the sky
+    let cloudY = cloud.yOffset;
+
+    // Only draw clouds if they're above the horizon
+    if (cloudY < adjustedHorizonY * 0.3) {
+      // Set opacity based on cloud's configuration
+      fill(255, 255, 255, cloud.opacity);
+
+      // Scale the cloud based on its size factor
+      let size = cloud.size;
+      ellipse(cloudX, cloudY, 80 * size, 40 * size);
+      ellipse(cloudX + (40 * size), cloudY - (10 * size), 70 * size, 30 * size);
+      ellipse(cloudX - (40 * size), cloudY - (5 * size), 60 * size, 25 * size);
     }
   }
   
