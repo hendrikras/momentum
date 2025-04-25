@@ -39,7 +39,7 @@ class Player extends Body {
 
     // Draw the body first - ensure it stays within physics bounds
     stroke("#050b55");
-    strokeWeight(w/8); // Thinner lines
+    strokeWeight(w/8);
     noFill();
 
     // Torso - shorter to accommodate head
@@ -49,7 +49,7 @@ class Player extends Body {
 
     // Arms - improved natural movement
     let shoulderY = torsoTop + (torsoBottom - torsoTop) * 0.2; // Shoulders at 20% down the torso
-    let armLength = w * 0.3; // Shorter arms to stay within bounds
+    let armLength = w * 0.25; // Shorter arms to stay within bounds
 
     // More natural arm movement during running
     let leftArmAngle, rightArmAngle;
@@ -95,7 +95,7 @@ class Player extends Body {
     // Right arm with improved elbow bend
     push();
     translate(0, shoulderY);
-    rotate(-rightArmAngle); // Negative to mirror the left arm
+    rotate(rightArmAngle); // Negative to mirror the left arm
     line(0, 0, armLength, 0); // Upper arm
 
     // Elbow bends more naturally
@@ -115,7 +115,7 @@ class Player extends Body {
     rotate(rightElbowBend);
     line(0, 0, armLength * 0.8, 0); // Lower arm (slightly shorter)
     pop();
-
+    scale(-1, 1);
     // Legs - improved natural movement
     let hipY = torsoBottom;
     let legLength = h * 0.25; // Shorter legs
@@ -123,24 +123,20 @@ class Player extends Body {
     // More natural leg movement during running
     let leftLegAngle, rightLegAngle;
 
-    if (isRunning) {
-      // Running cycle for legs
-      leftLegAngle = sin(runCycle * TWO_PI) * PI/4;
-      rightLegAngle = sin(runCycle * TWO_PI + PI) * PI/4; // Offset by PI to alternate with left leg
-    } else if (isJumping) {
+    if (isJumping) {
       // Legs tucked up slightly when jumping
       leftLegAngle = -PI/6;
       rightLegAngle = -PI/6;
+    } else if (isRunning) {
+      // Running cycle for legs
+      leftLegAngle = sin(runCycle * TWO_PI) * PI/4;
+      rightLegAngle = sin(runCycle * TWO_PI + PI) * PI/4; // Offset by PI to alternate with left leg
     } else {
       // Standing straight when idle
       leftLegAngle = 0;
       rightLegAngle = 0;
     }
 
-    // Flip leg angles based on direction
-    if (direction < 0) {
-      [leftLegAngle, rightLegAngle] = [rightLegAngle, leftLegAngle];
-    }
 
     // Left leg with improved knee bend
     push();
@@ -150,12 +146,12 @@ class Player extends Body {
 
     // Knee bends more naturally
     let leftKneeBend;
-    if (isRunning) {
-      // Knee bends more during running, synchronized with leg swing
-      leftKneeBend = map(sin(runCycle * TWO_PI - PI/4), -1, 1, 0, PI/3);
-    } else if (isJumping) {
+    if (isJumping) {
       // Bent knees when jumping
       leftKneeBend = PI/4;
+    } else if (isRunning) {
+      // Knee bends more during running, synchronized with leg swing
+      leftKneeBend = map(sin(runCycle * TWO_PI - PI/4), -1, 1, 0, PI/3);
     } else {
       // Slight bend when idle
       leftKneeBend = PI/20;
@@ -166,21 +162,21 @@ class Player extends Body {
     line(0, 0, 0, legLength); // Lower leg
 
     // Draw left boot
-    push();
-    translate(0, legLength);
-    fill(40, 40, 40); // Dark gray for boots
-    noStroke();
-    // Boot shape
-    beginShape();
-    vertex(-w/12, 0);
-    vertex(w/20, 0);
-    vertex(w/15, w/20);
-    vertex(-w/10, w/20);
-    endShape(CLOSE);
-    // Boot sole
-    fill(30, 30, 30); // Darker for sole
-    rect(-w/10, w/20, w/6, w/30);
-    pop();
+    // push();
+    // translate(0, legLength);
+    // fill(40, 40, 40); // Dark gray for boots
+    // noStroke();
+    // // Boot shape
+    // beginShape();
+    // vertex(-w/12, 0);
+    // vertex(w/20, 0);
+    // vertex(w/15, w/20);
+    // vertex(-w/10, w/20);
+    // endShape(CLOSE);
+    // // Boot sole
+    // fill(30, 30, 30); // Darker for sole
+    // rect(-w/10, w/20, w/6, w/30);
+    // pop();
 
     pop();
 
@@ -208,22 +204,23 @@ class Player extends Body {
     line(0, 0, 0, legLength); // Lower leg
 
     // Draw right boot
-    push();
-    translate(0, legLength);
-    fill(40, 40, 40); // Dark gray for boots
-    noStroke();
-    // Boot shape
-    beginShape();
-    vertex(-w/12, 0);
-    vertex(w/20, 0);
-    vertex(w/15, w/20);
-    vertex(-w/10, w/20);
-    endShape(CLOSE);
-    // Boot sole
-    fill(30, 30, 30); // Darker for sole
-    rect(-w/10, w/20, w/6, w/30);
-    pop();
 
+    // push();
+    // translate(0, legLength);
+    // fill(40, 40, 40); // Dark gray for boots
+    // noStroke();
+    // // Boot shape
+    // beginShape();
+    // vertex(-w/12, 0);
+    // vertex(w/20, 0);
+    // vertex(w/15, w/20);
+    // vertex(-w/10, w/20);
+    // endShape(CLOSE);
+    // // Boot sole
+    // fill(30, 30, 30); // Darker for sole
+    // rect(-w/10, w/20, w/6, w/30);
+    // pop();
+    //
     pop();
 
     // Now draw the head on top of the body
@@ -929,7 +926,6 @@ releaseRope() {
   // Emit an event that can be used for sound effects or visual feedback
   this.emit("rope.release", this);
 }
-  // Add this to the draw function of the player or in the main draw loop
 }
 
 const configPlayerEvents = () => {
