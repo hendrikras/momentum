@@ -229,76 +229,120 @@ class Block extends Body {
         configBlockEvents(this);
     }
 
-    breakGlass() {
-        // Mark the block as broken
-        this.broken = true;
+breakGlass() {
+    // Mark the block as broken
+    this.broken = true;
 
-        // Remove the body from the world to prevent further collisions
-        World.remove(world, this.body);
+    // Remove the body from the world to prevent further collisions
+    World.remove(world, this.body);
 
-        audioManager.play("glass");
+    audioManager.play("glass");
 
-        // Create glass particles
-        const blockWidth = config.world.blockSize;
-        const blockHeight = config.world.blockSize;
-        const centerX = this.body.position.x;
-        const centerY = this.body.position.y;
+    // Create glass particles
+    const blockWidth = config.world.blockSize;
+    const blockHeight = config.world.blockSize;
+    const centerX = this.body.position.x;
+    const centerY = this.body.position.y;
 
-        // Get player's velocity for directional bias in particle movement
-        const playerVelX = player.body.velocity.x;
-        const playerVelY = player.body.velocity.y;
+    // Get player's velocity for directional bias in particle movement
+    const playerVelX = player.body.velocity.x;
+    const playerVelY = player.body.velocity.y;
 
-        // Create glass particles
-        for (let i = 0; i < this.particleCount; i++) {
-            // Create random vertices for the glass shard
-            const size = random(5, 15);
-            const irregularity = 0.5; // How irregular the shard shape
+    // Create glass particles
+    for (let i = 0; i < this.particleCount; i++) {
+        // Create random vertices for the glass shard
+        const size = random(5, 15);
+        const irregularity = 0.5; // How irregular the shard shape
 
-            // Create random vertices for an irregular glass shard
-            const vertices = [];
-            const vertexCount = random(3, 6); // Random number of vertices between 3 and 5
+        // Create random vertices for an irregular glass shard
+        const vertices = [];
+        const vertexCount = random(3, 6); // Random number of vertices between 3 and 5
 
-            for (let j = 0; j < vertexCount; j++) {
-                const angle = map(j, 0, vertexCount, 0, TWO_PI);
-                const radius = size * (1 - irregularity + random(irregularity * 2));
-                vertices.push({
-                    x: cos(angle) * radius,
-                    y: sin(angle) * radius
-                });
-            }
-
-            // Calculate random position within the block
-            const offsetX = random(-blockWidth / 2, blockWidth / 2);
-            const offsetY = random(-blockHeight / 2, blockHeight / 2);
-
-            // Calculate velocity based on player's impact direction and random factors
-            // This creates a more natural explosion effect
-            const directionBias = 0.7; // How much the particles follow player's direction
-            const randomness = 1.0 - directionBias;
-
-            // Normalize player velocity to get direction
-            const playerSpeed = Math.sqrt(playerVelX * playerVelX + playerVelY * playerVelY);
-            const normalizedVelX = playerSpeed > 0 ? playerVelX / playerSpeed : 0;
-            const normalizedVelY = playerSpeed > 0 ? playerVelY / playerSpeed : 0;
-
-            // Calculate particle velocity with directional bias and randomness
-            const particleSpeed = random(2, 8);
-            const vx = (normalizedVelX * directionBias + random(-1, 1) * randomness) * particleSpeed;
-            const vy = (normalizedVelY * directionBias + random(-1, 1) * randomness) * particleSpeed - random(1, 3); // Add upward bias
-
-            // Create the particle
-            this.glassParticles.push({
-                x: centerX + offsetX,
-                y: centerY + offsetY,
-                vx: vx,
-                vy: vy,
-                angle: random(TWO_PI), // Random initial rotation
-                vr: random(-0.2, 0.2), // Random rotation speed
-                vertices: vertices,
-                lifetime: this.particleLifetime + random(-10, 10) // Slightly randomize lifetime
+        for (let j = 0; j < vertexCount; j++) {
+            const angle = map(j, 0, vertexCount, 0, TWO_PI);
+            const radius = size * (1 - irregularity + random(irregularity * 2));
+            vertices.push({
+                x: cos(angle) * radius,
+                y: sin(angle) * radius
             });
         }
+
+        // Calculate random position within the block
+        const offsetX = random(-blockWidth / 2, blockWidth / 2);
+        const offsetY = random(-blockHeight / 2, blockHeight / 2);
+
+        // Calculate velocity based on player's impact direction and random factors
+        // This creates a more natural explosion effect
+        const directionBias = 0.7; // How much the particles follow player's direction
+        const randomness = 1.0 - directionBias;
+
+        // Normalize player velocity to get direction
+        const playerSpeed = Math.sqrt(playerVelX * playerVelX + playerVelY * playerVelY);
+        const normalizedVelX = playerSpeed > 0 ? playerVelX / playerSpeed : 0;
+        const normalizedVelY = playerSpeed > 0 ? playerVelY / playerSpeed : 0;
+
+        // Calculate particle velocity with directional bias and randomness
+        const particleSpeed = random(2, 8);
+        const vx = (normalizedVelX * directionBias + random(-1, 1) * randomness) * particleSpeed;
+        const vy = (normalizedVelY * directionBias + random(-1, 1) * randomness) * particleSpeed - random(1, 3); // Add upward bias
+
+        // Create the particle
+        this.glassParticles.push({
+            x: centerX + offsetX,
+            y: centerY + offsetY,
+            vx: vx,
+            vy: vy,
+            angle: random(TWO_PI), // Random initial rotation
+            vr: random(-0.2, 0.2), // Random rotation speed
+            vertices: vertices,
+            lifetime: this.particleLifetime + random(-10, 10) // Slightly randomize lifetime
+        });
     }
+    
+    // Break adjacent glass blocks
+    this.breakAdjacentGlassBlocks();
+}
+
+breakAdjacentGlassBlocks() {
+    // Get the position of this block
+    const blockX = this.body.position.x;
+    const blockY = this.body.position.y;
+    const blockSize = config.world.blockSize;
+    
+    // Define the maximum distance for adjacent blocks
+    const adjacentDistance = blockSize * 1.5; // Slightly more than 1 block to account for positioning variations
+    
+    // Find all glass blocks in the world
+    // Instead of using Matter.Composite.allBodies, use the global bodies array
+    // which contains all the Block instances in the game
+    const glassBlocks = bodies.filter(body => {
+        // Check if this is a Block instance and specifically a glass block
+        return body instanceof Block && 
+               body.isBreakable && 
+               body.t === "g" && 
+               !body.broken &&
+               body !== this; // Exclude the current block
+    });
+    
+    // Check each glass block to see if it's adjacent
+    glassBlocks.forEach(block => {
+        // Calculate distance between this block and the other block
+        const distance = Matter.Vector.magnitude(
+            Matter.Vector.sub(
+                {x: blockX, y: blockY}, 
+                {x: block.body.position.x, y: block.body.position.y}
+            )
+        );
+        
+        // If the block is adjacent (within the defined distance), break it
+        if (distance <= adjacentDistance) {
+            // Add a small delay for a cascading effect
+            setTimeout(() => {
+                block.breakGlass();
+            }, random(50, 150)); // Random delay between 50-150ms for natural effect
+        }
+    });
+}
 
 
     draw() {
