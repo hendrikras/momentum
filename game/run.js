@@ -99,7 +99,7 @@ function draw() {
     drawParallaxBackground();
     textFont("Impact", 25);
     textAlign(CENTER, CENTER);
-    text("WASD/Arrow keys - Move\nSpacebar/W/Up Arrow - Jump/Walljump\n\nClick to start", width/2, height/2);
+    text("WASD/Arrow keys - Move\nSpacebar/W/Up Arrow - Jump/Walljump\n e key - release rope\n R key - restart current level \n\nClick to start", width/2, height/2);
     if(mouseIsPressed){
       scene = "game";
       audioManager.loop("background");
