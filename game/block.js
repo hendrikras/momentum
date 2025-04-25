@@ -236,10 +236,6 @@ class Block extends Body {
         // Remove the body from the world to prevent further collisions
         World.remove(world, this.body);
 
-        // Play a glass breaking sound if available
-        // if (typeof playSound === 'function') {
-        //     playSound('glass_break.mp3');
-        // }
         audioManager.play("glass");
 
         // Create glass particles
@@ -565,7 +561,7 @@ class Block extends Body {
 
                 Matter.Body.setAngularVelocity(
                     this.body,
-                    this.body.angularVelocity * 0.9 + restoringTorque // Added damping factor
+                    this.body.angularVelocity * 0.99 + restoringTorque // Added damping factor
                 );
             }
         }
@@ -636,7 +632,7 @@ class Block extends Body {
             if (!this.isPartOfExtendedSeesaw) {
                 // Apply a small restoring force toward equilibrium
                 // This makes the seesaw naturally want to return to level
-                const equilibriumForce = -this.body.angle * 0.0005;
+                const equilibriumForce = -this.body.angle * 0.0002;
                 Matter.Body.applyForce(
                     this.body,
                     this.body.position,
@@ -856,10 +852,10 @@ function connectSeesawBlocks() {
 
         const newSeesawBody = Bodies.fromVertices(pivotX, pivotY, [seesawPoints], {
             isStatic: false,
-            friction: 0.5,
+            friction: 0.02,
             frictionAir: 0.05,
-            density: 0.002,
-            restitution: 0.2,
+            density: 0.00035,
+            restitution: 0.45,
         });
 
         // Remove all the original seesaw bodies
@@ -876,7 +872,7 @@ function connectSeesawBlocks() {
             pointA: {x: pivotX, y: pivotY},
             bodyB: newSeesawBody,
             pointB: {x: 0, y: 0},
-            stiffness: 0.9,
+            stiffness: 0.8,
             length: 0
         });
 
