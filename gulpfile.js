@@ -20,7 +20,7 @@ return src([
     'libraries/pd.js',
     'libraries/matter.min.js',
     'libraries/p5.min.js',
-    'libraries/p5.sound-min.js',
+    // 'libraries/p5.sound-min.js',
     // Then game files
     'game/audio.js',
     'game/config.js',
@@ -61,7 +61,7 @@ return src('*.css')
 // Copy assets to dist
 function assets() {
   // Copy MP3 files from root to dist
- return src(['*.mp3'])
+ return src(['*.txt'])
     .pipe(dest('dist'))
     .pipe(browserSync.stream());
 }
@@ -80,7 +80,7 @@ watch('game/**/*.js', scripts);
 watch('libraries/**/*.js', scripts);
 watch('*.html', html);
 watch('*.css', styles);
-watch('*.mp3', assets);  // Watch for MP3 files in root
+watch('*.txt', assets);
 }
 
 // Export tasks

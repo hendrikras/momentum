@@ -707,6 +707,7 @@ class Player extends Body {
 
     // Jumping and Wall-jumping
     if (keys["ArrowUp"] || keys["w"] || keys[" "]) {
+      audioManager.play("jump");
       // If not touching left and right walls, wall-jump
       if (this.sensors.bottom && !this.sensors.left && !this.sensors.right) {
         bd.translate(this.body, {
