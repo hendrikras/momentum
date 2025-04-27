@@ -97,6 +97,14 @@ const blockTypes = {
         breakSpeed: config.player.speed * 1.2, // Speed required to break the glass
         particleCount: 15, // Number of glass shards when broken
         particleLifetime: 60 // Frames until particles fade out (60 frames = 1 second at 60fps)
+    },
+    "t": {
+        points: shapes.rect,
+        isTrampoline: true,
+        bounceForce: config.player.jumpForce * 2.5, // Stronger than a normal jump
+        compressionAmount: 0.3, // How much the trampoline compresses when landed on
+        recoverySpeed: 0.2, // How quickly the trampoline recovers its shape
+        particleCount: 8 // Number of particles to emit when bouncing
     }
 };
 
@@ -112,6 +120,7 @@ class Block extends Body {
         let isPivoting = stats.isPivoting || false;
         let isExtensible = stats.isExtensible || false;
         let isBreakable = stats.isBreakable || false;
+        let isTrampoline = stats.isTrampoline || false;
         // Store these variables temporarily
         let tempSegmentsPerBlock, tempSegmentRadius, tempAnchorX, tempAnchorY;
 
@@ -165,6 +174,19 @@ class Block extends Body {
         this.broken = false;
         this.glassParticles = [];
 
+        if (this.t === 't') {
+            this.isTrampoline = true;
+            this.bounceForce = stats.bounceForce || 0.25;
+            this.compressionAmount = stats.compressionAmount || 0.2;
+            this.compressionProgress = 0;
+            this.recoverySpeed = stats.recoverySpeed || 0.2;
+            this.isCompressed = false;
+            this.lastBounceTime = 0;
+            this.bounceCooldown = 10;
+            this.particleCount = stats.particleCount || 8;
+            this.trampolineParticles = [];
+        }
+
         if (isPivoting) {
             // Set default properties for seesaw
             this.maxAngle = stats.maxAngle;
@@ -174,7 +196,6 @@ class Block extends Body {
                 registerSeesawBlock(this);
             }
 
-            // Improve seesaw physics properties
             this.body.frictionAir = 0.05;
             this.body.restitution = 0.2;
             this.body.friction = 0.8;
@@ -182,9 +203,7 @@ class Block extends Body {
             this.body.angularDamping = 0.2;
         }
 
-// Add this to the Block class constructor or initialization method
         if (this.isPivoting) {
-            // Improve seesaw physics properties
             this.body.frictionAir = 0.05;  // Add air friction to dampen oscillation
             this.body.restitution = 0.2;   // Lower restitution to reduce bouncing
 
@@ -229,120 +248,120 @@ class Block extends Body {
         configBlockEvents(this);
     }
 
-breakGlass() {
-    // Mark the block as broken
-    this.broken = true;
+    breakGlass() {
+        // Mark the block as broken
+        this.broken = true;
 
-    // Remove the body from the world to prevent further collisions
-    World.remove(world, this.body);
+        // Remove the body from the world to prevent further collisions
+        World.remove(world, this.body);
 
-    audioManager.play("glass");
+        audioManager.play("glass");
 
-    // Create glass particles
-    const blockWidth = config.world.blockSize;
-    const blockHeight = config.world.blockSize;
-    const centerX = this.body.position.x;
-    const centerY = this.body.position.y;
+        // Create glass particles
+        const blockWidth = config.world.blockSize;
+        const blockHeight = config.world.blockSize;
+        const centerX = this.body.position.x;
+        const centerY = this.body.position.y;
 
-    // Get player's velocity for directional bias in particle movement
-    const playerVelX = player.body.velocity.x;
-    const playerVelY = player.body.velocity.y;
+        // Get player's velocity for directional bias in particle movement
+        const playerVelX = player.body.velocity.x;
+        const playerVelY = player.body.velocity.y;
 
-    // Create glass particles
-    for (let i = 0; i < this.particleCount; i++) {
-        // Create random vertices for the glass shard
-        const size = random(5, 15);
-        const irregularity = 0.5; // How irregular the shard shape
+        // Create glass particles
+        for (let i = 0; i < this.particleCount; i++) {
+            // Create random vertices for the glass shard
+            const size = random(5, 15);
+            const irregularity = 0.5; // How irregular the shard shape
 
-        // Create random vertices for an irregular glass shard
-        const vertices = [];
-        const vertexCount = random(3, 6); // Random number of vertices between 3 and 5
+            // Create random vertices for an irregular glass shard
+            const vertices = [];
+            const vertexCount = random(3, 6); // Random number of vertices between 3 and 5
 
-        for (let j = 0; j < vertexCount; j++) {
-            const angle = map(j, 0, vertexCount, 0, TWO_PI);
-            const radius = size * (1 - irregularity + random(irregularity * 2));
-            vertices.push({
-                x: cos(angle) * radius,
-                y: sin(angle) * radius
+            for (let j = 0; j < vertexCount; j++) {
+                const angle = map(j, 0, vertexCount, 0, TWO_PI);
+                const radius = size * (1 - irregularity + random(irregularity * 2));
+                vertices.push({
+                    x: cos(angle) * radius,
+                    y: sin(angle) * radius
+                });
+            }
+
+            // Calculate random position within the block
+            const offsetX = random(-blockWidth / 2, blockWidth / 2);
+            const offsetY = random(-blockHeight / 2, blockHeight / 2);
+
+            // Calculate velocity based on player's impact direction and random factors
+            // This creates a more natural explosion effect
+            const directionBias = 0.7; // How much the particles follow player's direction
+            const randomness = 1.0 - directionBias;
+
+            // Normalize player velocity to get direction
+            const playerSpeed = Math.sqrt(playerVelX * playerVelX + playerVelY * playerVelY);
+            const normalizedVelX = playerSpeed > 0 ? playerVelX / playerSpeed : 0;
+            const normalizedVelY = playerSpeed > 0 ? playerVelY / playerSpeed : 0;
+
+            // Calculate particle velocity with directional bias and randomness
+            const particleSpeed = random(2, 8);
+            const vx = (normalizedVelX * directionBias + random(-1, 1) * randomness) * particleSpeed;
+            const vy = (normalizedVelY * directionBias + random(-1, 1) * randomness) * particleSpeed - random(1, 3); // Add upward bias
+
+            // Create the particle
+            this.glassParticles.push({
+                x: centerX + offsetX,
+                y: centerY + offsetY,
+                vx: vx,
+                vy: vy,
+                angle: random(TWO_PI), // Random initial rotation
+                vr: random(-0.2, 0.2), // Random rotation speed
+                vertices: vertices,
+                lifetime: this.particleLifetime + random(-10, 10) // Slightly randomize lifetime
             });
         }
 
-        // Calculate random position within the block
-        const offsetX = random(-blockWidth / 2, blockWidth / 2);
-        const offsetY = random(-blockHeight / 2, blockHeight / 2);
+        // Break adjacent glass blocks
+        this.breakAdjacentGlassBlocks();
+    }
 
-        // Calculate velocity based on player's impact direction and random factors
-        // This creates a more natural explosion effect
-        const directionBias = 0.7; // How much the particles follow player's direction
-        const randomness = 1.0 - directionBias;
+    breakAdjacentGlassBlocks() {
+        // Get the position of this block
+        const blockX = this.body.position.x;
+        const blockY = this.body.position.y;
+        const blockSize = config.world.blockSize;
 
-        // Normalize player velocity to get direction
-        const playerSpeed = Math.sqrt(playerVelX * playerVelX + playerVelY * playerVelY);
-        const normalizedVelX = playerSpeed > 0 ? playerVelX / playerSpeed : 0;
-        const normalizedVelY = playerSpeed > 0 ? playerVelY / playerSpeed : 0;
+        // Define the maximum distance for adjacent blocks
+        const adjacentDistance = blockSize * 1.5; // Slightly more than 1 block to account for positioning variations
 
-        // Calculate particle velocity with directional bias and randomness
-        const particleSpeed = random(2, 8);
-        const vx = (normalizedVelX * directionBias + random(-1, 1) * randomness) * particleSpeed;
-        const vy = (normalizedVelY * directionBias + random(-1, 1) * randomness) * particleSpeed - random(1, 3); // Add upward bias
+        // Find all glass blocks in the world
+        // Instead of using Matter.Composite.allBodies, use the global bodies array
+        // which contains all the Block instances in the game
+        const glassBlocks = bodies.filter(body => {
+            // Check if this is a Block instance and specifically a glass block
+            return body instanceof Block &&
+                body.isBreakable &&
+                body.t === "g" &&
+                !body.broken &&
+                body !== this; // Exclude the current block
+        });
 
-        // Create the particle
-        this.glassParticles.push({
-            x: centerX + offsetX,
-            y: centerY + offsetY,
-            vx: vx,
-            vy: vy,
-            angle: random(TWO_PI), // Random initial rotation
-            vr: random(-0.2, 0.2), // Random rotation speed
-            vertices: vertices,
-            lifetime: this.particleLifetime + random(-10, 10) // Slightly randomize lifetime
+        // Check each glass block to see if it's adjacent
+        glassBlocks.forEach(block => {
+            // Calculate distance between this block and the other block
+            const distance = Matter.Vector.magnitude(
+                Matter.Vector.sub(
+                    {x: blockX, y: blockY},
+                    {x: block.body.position.x, y: block.body.position.y}
+                )
+            );
+
+            // If the block is adjacent (within the defined distance), break it
+            if (distance <= adjacentDistance) {
+                // Add a small delay for a cascading effect
+                setTimeout(() => {
+                    block.breakGlass();
+                }, random(50, 150)); // Random delay between 50-150ms for natural effect
+            }
         });
     }
-    
-    // Break adjacent glass blocks
-    this.breakAdjacentGlassBlocks();
-}
-
-breakAdjacentGlassBlocks() {
-    // Get the position of this block
-    const blockX = this.body.position.x;
-    const blockY = this.body.position.y;
-    const blockSize = config.world.blockSize;
-    
-    // Define the maximum distance for adjacent blocks
-    const adjacentDistance = blockSize * 1.5; // Slightly more than 1 block to account for positioning variations
-    
-    // Find all glass blocks in the world
-    // Instead of using Matter.Composite.allBodies, use the global bodies array
-    // which contains all the Block instances in the game
-    const glassBlocks = bodies.filter(body => {
-        // Check if this is a Block instance and specifically a glass block
-        return body instanceof Block && 
-               body.isBreakable && 
-               body.t === "g" && 
-               !body.broken &&
-               body !== this; // Exclude the current block
-    });
-    
-    // Check each glass block to see if it's adjacent
-    glassBlocks.forEach(block => {
-        // Calculate distance between this block and the other block
-        const distance = Matter.Vector.magnitude(
-            Matter.Vector.sub(
-                {x: blockX, y: blockY}, 
-                {x: block.body.position.x, y: block.body.position.y}
-            )
-        );
-        
-        // If the block is adjacent (within the defined distance), break it
-        if (distance <= adjacentDistance) {
-            // Add a small delay for a cascading effect
-            setTimeout(() => {
-                block.breakGlass();
-            }, random(50, 150)); // Random delay between 50-150ms for natural effect
-        }
-    });
-}
 
 
     draw() {
@@ -411,6 +430,98 @@ breakAdjacentGlassBlocks() {
             case "+":
                 fill(0, 225, 255);
                 ellipse(this.body.position.x, this.body.position.y, config.world.blockSize, config.world.blockSize);
+                break;
+            case "t":
+                // Draw the trampoline
+                push();
+
+                // Calculate compression if active
+                let compressionOffset = 0;
+                if (this.isCompressed) {
+                    // Increase compression progress
+                    this.compressionProgress += this.recoverySpeed;
+
+                    // Calculate compression amount using a sine curve for smooth animation
+                    // First compress down, then bounce back up
+                    if (this.compressionProgress < PI) {
+
+                        // Compression phase (0 to PI)
+                        compressionOffset = sin(this.compressionProgress) * this.compressionAmount * config.world.blockSize;
+                    } else {
+                        // Recovery phase (PI to 2*PI)
+                        compressionOffset = sin(this.compressionProgress) * this.compressionAmount * config.world.blockSize;
+
+                        // Reset when animation completes
+                        if (this.compressionProgress >= TWO_PI) {
+                            this.isCompressed = false;
+                            this.compressionProgress = 0;
+                        }
+                    }
+                }
+
+                // Draw the trampoline base (dark color)
+                fill(50, 50, 50);
+                rectMode(CENTER);
+                rect(this.body.position.x, this.body.position.y + config.world.blockSize / 4,
+                    config.world.blockSize, config.world.blockSize / 2);
+
+                // Draw the trampoline springs (silver color)
+                fill(180);
+                stroke(100);
+                strokeWeight(2);
+
+                // Left spring
+                rect(this.body.position.x - config.world.blockSize / 3,
+                    this.body.position.y,
+                    config.world.blockSize / 10,
+                    config.world.blockSize / 2 - compressionOffset);
+
+                // Right spring
+                rect(this.body.position.x + config.world.blockSize / 3,
+                    this.body.position.y,
+                    config.world.blockSize / 10,
+                    config.world.blockSize / 2 - compressionOffset);
+
+                // Draw the bouncy surface (red color)
+                fill(255, 50, 50);
+                noStroke();
+                rectMode(CENTER);
+                rect(this.body.position.x,
+                    this.body.position.y - config.world.blockSize / 4 + compressionOffset,
+                    config.world.blockSize * 0.9,
+                    config.world.blockSize / 8);
+
+                // Draw bounce particles if active
+                if (this.trampolineParticles && this.trampolineParticles.length > 0) {
+                    for (let i = this.trampolineParticles.length - 1; i >= 0; i--) {
+                        const particle = this.trampolineParticles[i];
+
+                        // Calculate alpha based on remaining lifetime
+                        const alpha = map(particle.lifetime, 0, 30, 0, 255);
+
+                        // Draw the particle
+                        fill(255, 50, 50, alpha);
+                        noStroke();
+                        ellipse(particle.x, particle.y, particle.size, particle.size);
+
+                        // Update particle position
+                        particle.x += particle.vx;
+                        particle.y += particle.vy;
+
+                        // Apply gravity
+                        particle.vy += 0.05;
+
+                        // Decrease lifetime
+                        particle.lifetime--;
+
+                        // Remove dead particles
+                        if (particle.lifetime <= 0) {
+                            this.trampolineParticles.splice(i, 1);
+                        }
+                    }
+                }
+
+                pop();
                 break;
             case "m":
                 fill(100, 100, 255);  // Light blue color for moving platforms
@@ -550,8 +661,36 @@ breakAdjacentGlassBlocks() {
 
                 // Check if player is moving fast enough to break the glass
                 // Break glass if player hits it from the side with sufficient speed
-                if (playerSpeed  > this.breakSpeed) {
+                if (playerSpeed > this.breakSpeed) {
                     this.breakGlass();
+                }
+            }
+
+            // Handle trampoline behavior
+            if (this.isTrampoline) {
+                // and if we're not in the cooldown period
+                if (frameCount > this.lastBounceTime + this.bounceCooldown) {
+                    // Start compression animation
+                    this.isCompressed = true;
+                    this.compressionProgress = 0;
+
+                    // Apply the bounce force after a short delay to match the animation
+                    setTimeout(() => {
+                        // Apply a strong upward force to the player
+                        Matter.Body.setVelocity(player.body, {
+                            x: player.body.velocity.x * 1.2, // Maintain horizontal momentum with a boost
+                            y: -Math.sqrt(2 * this.bounceForce * config.world.gravity * 800) // Physics formula for desired height
+                        });
+
+                        // Create bounce particles
+                        this.createTrampolineParticles();
+
+                        // Play bounce sound
+                        audioManager.play("jump");
+
+                        // Record the bounce time
+                        this.lastBounceTime = frameCount;
+                    }, 100); // 100ms delay for visual effect
                 }
             }
 
@@ -800,6 +939,33 @@ breakAdjacentGlassBlocks() {
 
         // Clear the pending rope blocks for the next level
         pendingRopeBlocks = [];
+    }
+
+    createTrampolineParticles() {
+        // Initialize the particles array if it doesn't exist
+        if (!this.trampolineParticles) {
+            this.trampolineParticles = [];
+        }
+
+        // Create particles that shoot out from the trampoline surface
+        const particleCount = this.particleCount || 8;
+        const blockWidth = config.world.blockSize;
+        const surfaceY = this.body.position.y - blockWidth / 4; // Top surface position
+
+        for (let i = 0; i < particleCount; i++) {
+            // Calculate random position along the trampoline surface
+            const offsetX = random(-blockWidth / 2 * 0.8, blockWidth / 2 * 0.8);
+
+            // Create the particle with upward and outward velocity
+            this.trampolineParticles.push({
+                x: this.body.position.x + offsetX,
+                y: surfaceY,
+                vx: offsetX * 0.05, // Spread outward based on position
+                vy: random(-2, -1), // Upward velocity
+                size: random(3, 8),
+                lifetime: random(20, 30) // Frames until particles fade out
+            });
+        }
     }
 }
 
