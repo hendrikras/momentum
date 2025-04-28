@@ -61,7 +61,7 @@ For developers interested in the code structure:
 
 ## Acknowledgments
 
-This game was built using the [Advanced P5.js Platformer Engine](https://github.com/username/Advanced-P5js-Platformer-Engine) as a foundation, with significant customizations and gameplay enhancements.
+This game was built using the [Advanced P5.js Platformer Engine](https://github.com/ReplitLangs/platformer) as a foundation, with significant customizations and gameplay enhancements.
 
 ## License
 
