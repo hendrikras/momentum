@@ -363,7 +363,6 @@ class Block extends Body {
         });
     }
 
-
     draw() {
         if (this.isHidden || this.broken) {
             // Draw glass particles if the block is broken

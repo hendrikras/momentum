@@ -22,7 +22,7 @@ const configLevel = () => {
                             }
                         }
                     );
-                    player = new Player(playerBody);
+                    player = new Hero(playerBody);
                     configPlayerEvents();
                     bodies.push(player);
                 } else {
