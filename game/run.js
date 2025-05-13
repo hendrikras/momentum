@@ -59,6 +59,7 @@ function handleData(data) {
 
 function setup() {
     createCanvas(1000, 500);
+    frameRate(60); // Cap framerate to 60 fps
     angleMode(RADIANS);
     rectMode(CENTER);
     noStroke();
