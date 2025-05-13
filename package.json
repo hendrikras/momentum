@@ -1,9 +1,8 @@
 {
   "scripts": {
     "build": "gulp build",
-    "generate-certs": "openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost'",
-    "dev": "npm run generate-certs && http-server -S -C cert.pem -K key.pem",
-    "serve": "npm run generate-certs && http-server -S -C cert.pem -K key.pem -p 8080",
+    "dev": "http-server",
+    "serve": "http-server -p 8080",
     "start": "npm run build && npm run serve",
     "package": "npm run build && cd dist && zip -r ../momentum.zip ."
   },
